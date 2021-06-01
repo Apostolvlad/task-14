@@ -4,6 +4,7 @@ import random
 from collections import defaultdict
 
 import service_file
+from service_write_html import fill_html, fill_html2, get_template
 
 BASE_DATE = (
     'сегодня',
@@ -61,18 +62,6 @@ def get_base_masters(base_masters):
     for master_education in base_master_education:
         base_masters[master_education['masterDataId']]['education'].append(master_education['education'])
 
-def fill_html(base, html, name, ignore = ()):
-    for item in base.items():
-        if item[0] in ignore: continue
-        html = html.replace(f'{name}.{item[0]}', item[1])
-    return html
-
-def fill_html2(base, html, sh, name):
-    result = list()
-    for text in base:
-        result.append(sh.format(text = text))
-    return html.replace(name, '\n'.join(result))
-
 def main():
     try: 
         os.mkdir('result')
@@ -83,14 +72,12 @@ def main():
 
     base_containers = service_file.cvs_convert_json('Flyword_DB - Container.csv')
     base_geo = service_file.cvs_convert_json('Flyword_DB - Geo.csv')
-    
+    base_cities_back = service_file.loud_txt('cities')
+    base_cities = list()
     get_base_orders_id(base_orders_id)
     get_base_masters(base_masters)
 
-    template = dict()
-    for filename in os.listdir('template'):
-        with open(f'template\\{filename}', encoding='utf-8') as f:
-            template.update({filename[:filename.find('.')]: f.read()})
+    template = get_template()
     sitemaps = list()
     list_masters = list() 
     base_containers_selects = list()
@@ -144,6 +131,7 @@ def main():
                 i_insert = index.find('"reviews-wrap__right">') + 22
             index = f'{index[:i_insert]}\n{post_item}{index[i_insert:]}'
         link_items1 = list()
+        
         link_items3 = list()
         for data_container2 in base_containers:
             if data_container == data_container2: continue
@@ -158,6 +146,13 @@ def main():
             link_items.append(fill_html(data_container2, template[templ_name], 'Container', ignore = ('data_orders',)))
         link_items1 = '\n'.join(link_items1)
         index = index.replace('Container.listLinks_1', f'\n<ul>{link_items1}</ul>')
+        list_items2 = list()
+        for _ in range(15):
+            if not len(base_cities):
+                base_cities = base_cities_back.copy()
+                random.shuffle(base_cities)
+            list_items2.append(template['link_items2'].replace('city', base_cities.pop()))
+        index = index.replace('Container.list_items2', '\n'.join(list_items2))
 
         list_items3 = ''
         if data_container['linksBlock_3'] != '0':
